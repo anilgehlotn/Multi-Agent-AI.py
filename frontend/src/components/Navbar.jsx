@@ -1,3 +1,4 @@
+import { NavLink } from 'react-router-dom';
 import { Zap, ExternalLink } from 'lucide-react';
 
 export default function Navbar() {
@@ -6,7 +7,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* ── Logo ─────────────────────────────────────────────── */}
-          <div className="flex items-center gap-2.5">
+          <NavLink to="/" className="flex items-center gap-2.5">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center"
               style={{ backgroundColor: 'var(--color-btn-primary-bg)' }}
@@ -16,17 +17,30 @@ export default function Navbar() {
             <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
               ResearchMind
             </span>
-          </div>
+          </NavLink>
 
           {/* ── Center nav links ─────────────────────────────────── */}
           <div className="hidden sm:flex items-center gap-8">
-            <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+            <NavLink
+              to="/"
+              end
+              className="text-sm font-medium transition-colors"
+              style={({ isActive }) => ({ color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-muted)' })}
+            >
               Dashboard
-            </span>
-            <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            </NavLink>
+            <NavLink
+              to="/history"
+              className="text-sm font-medium transition-colors"
+              style={({ isActive }) => ({ color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-muted)' })}
+            >
               History
-            </span>
-            <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            </NavLink>
+            <span
+              className="text-sm cursor-not-allowed"
+              style={{ color: 'var(--color-text-muted)' }}
+              title="Coming soon"
+            >
               Settings
             </span>
           </div>
@@ -40,15 +54,10 @@ export default function Navbar() {
               className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
               style={{ backgroundColor: 'var(--color-border-light)' }}
               id="github-link"
+              title="View source"
             >
               <ExternalLink size={16} style={{ color: 'var(--color-text-secondary)' }} />
             </a>
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold text-white"
-              style={{ backgroundColor: '#6366F1' }}
-            >
-              LO
-            </div>
           </div>
         </div>
       </div>

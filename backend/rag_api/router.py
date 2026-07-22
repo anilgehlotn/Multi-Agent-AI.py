@@ -92,6 +92,12 @@ def ask_question(session_id: str, payload: QueryCreate, db: Session = Depends(ge
         answer, sources = service.answer_question(session_id, payload.question)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        # Anything from the LLM/embedding call (rate limits, provider
+        # outages, etc.) — surface as a clean upstream error instead of a
+        # bare 500 with no JSON body, so the frontend has a message to show.
+        logger.exception("ask failed for session %s", session_id)
+        raise HTTPException(status_code=502, detail=f"The AI provider failed to answer: {exc}")
 
     query = service.save_query(db, session_id, payload.question, answer, sources)
     return QueryOut.model_validate(query)
