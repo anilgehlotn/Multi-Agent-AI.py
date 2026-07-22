@@ -1,103 +1,113 @@
-# Multi-Agent AI — Research Pipeline + RAG PDF Q&A
+# ResearchMind — Multi-Agent Research + RAG PDF Q&A
 
-A FastAPI backend wrapping two AI systems: a 4-agent research pipeline that searches, scrapes, writes, and critiques reports on any topic, and a RAG-based PDF Q&A engine for grounded document question-answering.
+A FastAPI backend wrapping two AI systems — a 4-agent research pipeline that searches, scrapes, writes, and critiques reports on any topic, and a RAG-based PDF Q&A engine for grounded document question-answering — with a React frontend on top.
 
 ## 🧱 Architecture
 
-Two independent pipelines served through a single FastAPI app:
+Two independent pipelines served through a single FastAPI app, backed by SQLite:
 
-### 1. Research Pipeline (async, job-based)
+### 1. Research Pipeline (async, DB-backed)
 ```
 Topic → Search Agent → Reader Agent → Writer Chain → Critic Chain → Report
 ```
-Runs as a background thread per request; the frontend polls a job status endpoint until the pipeline completes.
+Runs as a FastAPI `BackgroundTask`; each run is a `research_runs` row the frontend polls until it reaches `completed`/`failed`.
 
-### 2. RAG PDF Q&A
+### 2. RAG PDF Q&A (async, session-based)
 ```
-PDF Upload → Chunk & Embed → ChromaDB (persisted) → MMR Retrieval → LLM Answer
+PDF Upload → Chunk & Embed (Gemini) → ChromaDB (persisted per session) → MMR Retrieval → LLM Answer
 ```
+Each upload creates a `rag_sessions` row and its own on-disk Chroma index; questions and answers are logged to `rag_queries`.
 
 ## 🤖 Agents & Chains
 
-| Component | Role | Tool/Model |
+| Component | Role | Model |
 |---|---|---|
-| **Search Agent** | Finds recent, reliable info on the topic | `web_search` (Tavily API) + GPT-4o-mini |
-| **Reader Agent** | Picks the most relevant URL, scrapes deeper content | `scrape_url` (BeautifulSoup) + GPT-4o-mini |
-| **Writer Chain** | Drafts a structured report (Intro / Findings / Conclusion / Sources) | GPT-4o-mini |
-| **Critic Chain** | Scores and critiques the report with strengths/improvements | GPT-4o-mini |
-| **RAG Q&A** | Answers questions strictly from retrieved PDF context | Mistral (`mistral-small-2506`) |
+| **Search Agent** | Finds recent, reliable info on the topic | `web_search` (Tavily API) + Gemini |
+| **Reader Agent** | Picks the most relevant URL, scrapes deeper content | `scrape_url` (BeautifulSoup) + Gemini |
+| **Writer Chain** | Drafts a structured report (Intro / Findings / Conclusion / Sources) | Gemini |
+| **Critic Chain** | Scores and critiques the report with strengths/improvements | Gemini |
+| **RAG Q&A** | Answers questions strictly from retrieved PDF context | Gemini |
+
+`backend/rag/retrievers/multiquery.py` and `mmr.py` are standalone retrieval demos kept on Mistral/HuggingFace — not part of the live API.
 
 ## 🧰 Tech Stack
 
-- **Language:** Python
-- **Framework:** FastAPI
-- **Agent Orchestration:** LangChain (`create_agent`, chains via `ChatPromptTemplate` + `StrOutputParser`)
-- **LLMs:** OpenAI GPT-4o-mini (agents/chains), Mistral `mistral-small-2506` (RAG answers)
-- **Vector Store:** ChromaDB (persisted to disk)
-- **Embeddings:** OpenAI Embeddings
-- **Search:** Tavily API
-- **Web Scraping:** BeautifulSoup + Requests
-- **PDF Processing:** PyPDFLoader + RecursiveCharacterTextSplitter
+**Backend:** FastAPI, SQLAlchemy 2.x + SQLite, LangChain (`create_agent`, chains via `ChatPromptTemplate` + `StrOutputParser`), `langchain-google-genai` (Gemini chat + embeddings), ChromaDB, Tavily, BeautifulSoup, PyPDFLoader.
+
+**Frontend:** React 19 + Vite, Tailwind CSS v4, `react-router-dom`, `react-markdown`.
+
+**Auth:** A full JWT auth system (signup/login/me/logout, bcrypt, SQLAlchemy `User` model) is implemented in `backend/auth/` and mounted at `/auth/*`, but it is **not wired into the research/RAG routes** — the app currently runs single-user with those endpoints unprotected. Wiring it up (per-user history, protected routes) is a planned next step.
 
 ## 📁 Project Structure
 
 ```
-├── agents.py              # build_search_agent, build_reader_agent, writer_chain, critic_chain
-├── tools.py                # web_search (Tavily), scrape_url (BeautifulSoup)
-├── main.py                  # CLI runner for the research pipeline
-├── rag_qa.py                # CLI RAG Q&A loop (retriever + Mistral)
-├── backend/
-│   └── main.py               # FastAPI app — wraps both pipelines as HTTP APIs
-├── chroma_db/               # persisted vector store (generated at runtime)
-└── requirements.txt
+backend/
+  main.py                    # FastAPI app entry
+  config.py                  # env vars via pydantic-settings
+  db/                        # SQLAlchemy engine/session + models (User, ResearchRun, RagSession, RagQuery)
+  auth/                      # JWT auth (implemented, not wired into research/RAG routes)
+  agents/                    # research_agents.py, pipeline.py, tools.py
+  research/                  # research schemas/service/router (/research/*)
+  rag_api/                   # RAG schemas/service/router (/rag/*)
+  rag/                       # retrieval demos (multiquery, mmr, arxiv) + standalone create_database.py
+  data/                      # uploaded PDFs + per-session Chroma indices (gitignored)
+frontend/
+  src/
+    components/              # Navbar, Research + RAG tab components, shared UI (ErrorBanner, ConfirmModal, StatusPill)
+    pages/                   # Dashboard, History, ResearchRunDetail, RagSessionDetail
+    lib/                     # api.js, usePolling.js, format.js, storage.js
 ```
 
 ## 🚀 Getting Started
 
-### Install dependencies
+### Backend
 ```bash
-pip install -r requirements.txt
+cd backend
+uv venv && uv pip install -r requirements.txt   # or pip install -r requirements.txt
+cp .env.example .env   # fill in GOOGLE_API_KEY, TAVILY_API_KEY, JWT_SECRET_KEY
+uvicorn main:app --reload --port 8000
 ```
+Note: `chromadb`'s dependency chain currently has no wheels for Python 3.14 — use Python 3.11–3.12 for the backend venv if `pip install chromadb` fails.
 
-### Environment variables
-```
-OPENAI_API_KEY=
-TAVILY_API_KEY=
-MISTRAL_API_KEY=
-```
-
-### Run the API
+### Frontend
 ```bash
-uvicorn backend.main:app --reload --port 8000
-```
-
-### Run standalone (CLI mode)
-```bash
-python main.py       # research pipeline
-python rag_qa.py      # RAG Q&A loop
+cd frontend
+npm install
+cp .env.example .env.local   # defaults to http://localhost:8000, override if needed
+npm run dev
 ```
 
 ## 📡 API Endpoints
 
-### Research Pipeline
+### Research
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/research/run` | Start a research job for a topic → returns `job_id` |
-| GET | `/api/research/status/{job_id}` | Poll job status/results (`step`, `results`, `error`) |
+| POST | `/research/run` | Start a run for a topic → `202` + run (steps all `waiting`) |
+| GET | `/research/history` | List runs, newest first |
+| GET | `/research/history/{id}` | Full run detail (report, feedback, etc.) |
+| GET | `/research/history/{id}/status` | Poll target — status + per-step progress |
+| DELETE | `/research/history/{id}` | Delete a run |
 
-### RAG PDF Q&A
+### RAG
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/rag/upload` | Upload a PDF → returns `file_id` |
-| POST | `/api/rag/build-index` | Chunk, embed, and index the uploaded PDF into ChromaDB |
-| POST | `/api/rag/ask` | Ask a question, answered strictly from retrieved PDF context |
+| POST | `/rag/upload` | Upload a PDF (multipart) → `202` + session (indexing starts in the background) |
+| GET | `/rag/sessions` | List sessions |
+| GET | `/rag/sessions/{id}` | Session detail + past Q&A |
+| GET | `/rag/sessions/{id}/status` | Poll target — indexing status |
+| POST | `/rag/sessions/{id}/ask` | Ask a question (only once status is `ready`) |
+| DELETE | `/rag/sessions/{id}` | Delete a session (also removes the PDF + Chroma index from disk) |
+
+### Auth (implemented, unused by the app today)
+`POST /auth/signup`, `POST /auth/login`, `GET /auth/me`, `POST /auth/logout`
 
 ## ⚙️ Core Functionality
 
-- **Background job pattern** — research jobs run on a daemon thread; status tracked in an in-memory dict, polled by the frontend until `step == "done"`
+- **Background task pattern** — research runs and RAG indexing execute via FastAPI `BackgroundTasks`, each opening its own DB session; the frontend polls a status endpoint until the job reaches a terminal state
 - **MMR retrieval** — RAG retriever uses Maximal Marginal Relevance (`k=4`, `fetch_k=10`, `lambda_mult=0.5`) to balance relevance and diversity in retrieved chunks
 - **Grounded answers** — RAG prompt strictly instructs the LLM to answer only from context, falling back to "I could not find the answer in the document" otherwise
-- **Persisted vector store** — ChromaDB index survives across requests via `persist_directory`
+- **Persisted, per-session vector stores** — each PDF gets its own Chroma index under `backend/data/rag_indices/{session_id}/`, so sessions don't share or overwrite each other's embeddings
+- **Startup recovery** — runs/sessions left `running`/`indexing` from a server restart are marked `failed` on the next boot rather than staying stuck forever
 
 ## 📄 License
 

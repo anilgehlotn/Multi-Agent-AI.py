@@ -4,7 +4,8 @@ import shutil
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_groq import ChatGroq
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sqlalchemy.orm import Session
 
@@ -182,7 +183,7 @@ def answer_question(session_id: str, question: str) -> tuple[str, list[dict]]:
     docs = retriever.invoke(question)
     context = "\n\n".join(doc.page_content for doc in docs)
 
-    llm = ChatGoogleGenerativeAI(model="gemini-flash-latest", temperature=0)
+    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
     final_prompt = _RAG_PROMPT.invoke({"context": context, "question": question})
     response = llm.invoke(final_prompt)
 

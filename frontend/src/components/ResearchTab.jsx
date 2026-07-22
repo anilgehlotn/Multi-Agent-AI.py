@@ -2,75 +2,69 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import TopicInput from './TopicInput';
 import PipelineSteps from './PipelineSteps';
 import ResearchResults from './ResearchResults';
-import { runResearch, getResearchStatus } from '../lib/api';
+import ErrorBanner from './ErrorBanner';
+import { researchApi } from '../lib/api';
+import { usePolling } from '../lib/usePolling';
+import { storage } from '../lib/storage';
+
+const ACTIVE_STATUSES = new Set(['pending', 'running']);
 
 export default function ResearchTab() {
-  const [topic, setTopic] = useState('');
-  const [jobId, setJobId] = useState(null);
-  const [currentStep, setCurrentStep] = useState(null); // null | search | reader | writer | critic | done | error
-  const [results, setResults] = useState({});
-  const [error, setError] = useState(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const pollRef = useRef(null);
+  const [topic, setTopic] = useState(() => storage.getLastTopic());
+  const [runId, setRunId] = useState(() => storage.getActiveRunId());
+  const [startError, setStartError] = useState(null);
+  const [runDetail, setRunDetail] = useState(null);
+  const [detailError, setDetailError] = useState(null);
+  const fetchedDetailFor = useRef(null);
 
-  // ── Poll for status updates ────────────────────────────────────────────
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
+  const { data: run, error: pollError } = usePolling(
+    () => researchApi.status(runId),
+    {
+      intervalMs: 2000,
+      enabled: !!runId,
+      stopWhen: (result) => result && !ACTIVE_STATUSES.has(result.status),
     }
-  }, []);
+  );
 
-  const startPolling = useCallback((id) => {
-    stopPolling();
-    pollRef.current = setInterval(async () => {
-      const { data, error: err } = await getResearchStatus(id);
-      if (err) {
-        setError(err);
-        setIsRunning(false);
-        stopPolling();
-        return;
-      }
-      if (data) {
-        setCurrentStep(data.step);
-        setResults(data.results || {});
-        if (data.error) {
-          setError(data.error);
-          setIsRunning(false);
-          stopPolling();
-        } else if (data.step === 'done') {
-          setIsRunning(false);
-          stopPolling();
-        }
-      }
-    }, 1500);
-  }, [stopPolling]);
+  const isRunning = !!runId && (!run || ACTIVE_STATUSES.has(run.status));
 
-  // ── Cleanup on unmount ─────────────────────────────────────────────────
+  // Once the run reaches a terminal state, drop it from "resume on refresh"
+  // storage and fetch the full report/feedback once.
   useEffect(() => {
-    return () => stopPolling();
-  }, [stopPolling]);
+    if (!run || !runId) return;
+    if (ACTIVE_STATUSES.has(run.status)) return;
 
-  // ── Start research ─────────────────────────────────────────────────────
-  const handleRun = async () => {
-    if (!topic.trim()) return;
+    storage.setActiveRunId(null);
 
-    setError(null);
-    setResults({});
-    setCurrentStep('queued');
-    setIsRunning(true);
-
-    const { data, error: err } = await runResearch(topic.trim());
-    if (err) {
-      setError(err);
-      setIsRunning(false);
-      setCurrentStep(null);
-      return;
+    if (run.status === 'completed' && fetchedDetailFor.current !== runId) {
+      fetchedDetailFor.current = runId;
+      setDetailError(null);
+      researchApi
+        .get(runId)
+        .then(setRunDetail)
+        .catch((err) => setDetailError(err.message));
     }
+  }, [run, runId]);
 
-    setJobId(data.job_id);
-    startPolling(data.job_id);
-  };
+  const handleRun = useCallback(async () => {
+    const trimmed = topic.trim();
+    if (!trimmed) return;
+
+    setStartError(null);
+    setRunDetail(null);
+    fetchedDetailFor.current = null;
+    storage.setLastTopic(trimmed);
+
+    try {
+      const created = await researchApi.run(trimmed);
+      setRunId(created.id);
+      storage.setActiveRunId(created.id);
+    } catch (err) {
+      setStartError(err.message);
+    }
+  }, [topic]);
+
+  const activeError = run?.status === 'failed' ? run.error : pollError?.message || startError;
 
   return (
     <div className="animate-fade-in-up">
@@ -86,40 +80,29 @@ export default function ResearchTab() {
 
       {/* ── Two-column layout ──────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Left: Input */}
         <div className="lg:col-span-2">
-          <TopicInput
-            topic={topic}
-            setTopic={setTopic}
-            onRun={handleRun}
-            isRunning={isRunning}
-          />
+          <TopicInput topic={topic} setTopic={setTopic} onRun={handleRun} isRunning={isRunning} />
         </div>
 
-        {/* Right: Pipeline steps */}
         <div className="lg:col-span-3">
-          <PipelineSteps currentStep={currentStep} results={results} />
+          <PipelineSteps steps={run?.steps} />
         </div>
       </div>
 
       {/* ── Error display ──────────────────────────────────────────────── */}
-      {error && (
-        <div
-          className="mt-6 p-4 rounded-xl text-sm font-medium animate-fade-in-up"
-          style={{
-            backgroundColor: '#FEF2F2',
-            color: '#DC2626',
-            border: '1px solid #FECACA',
-          }}
-        >
-          ⚠️ {error}
+      {activeError && (
+        <div className="mt-6">
+          <ErrorBanner message={activeError} />
+        </div>
+      )}
+      {detailError && (
+        <div className="mt-6">
+          <ErrorBanner message={`Run completed, but the report failed to load: ${detailError}`} onRetry={() => researchApi.get(runId).then(setRunDetail).catch((err) => setDetailError(err.message))} />
         </div>
       )}
 
-      {/* ── Results (full width, below) ────────────────────────────────── */}
-      {currentStep === 'done' && Object.keys(results).length > 0 && (
-        <ResearchResults results={results} topic={topic} />
-      )}
+      {/* ── Results ───────────────────────────────────────────────────── */}
+      {run?.status === 'completed' && runDetail && <ResearchResults run={runDetail} />}
     </div>
   );
 }
