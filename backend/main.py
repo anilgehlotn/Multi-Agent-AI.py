@@ -10,6 +10,7 @@ Or from the project root:
 
 import os
 import sys
+from datetime import datetime, timezone
 
 # Make this file importable both as `backend.main` (run from the project root)
 # and as a bare `main` module (run from inside backend/), so `config` resolves
@@ -32,9 +33,11 @@ from rag_api import service as rag_service
 
 app = FastAPI(title="ResearchMind API")
 
+cors_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,6 +53,7 @@ app.include_router(rag_router)
 @app.on_event("startup")
 async def validate_environment() -> None:
     required = {
+        "GROQ_API_KEY": os.environ.get("GROQ_API_KEY", ""),
         "GOOGLE_API_KEY": settings.GOOGLE_API_KEY,
         "TAVILY_API_KEY": settings.TAVILY_API_KEY,
     }
@@ -98,3 +102,10 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/warmup")
+async def warmup():
+    # Hit from the frontend on load to trigger a Render free-tier cold start
+    # before the user's first real request. No work beyond responding.
+    return {"status": "warm", "timestamp": datetime.now(timezone.utc).isoformat()}

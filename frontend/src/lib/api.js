@@ -42,6 +42,14 @@ async function apiFetch(path, options = {}) {
   return res.json();
 }
 
+// Hits the backend's /warmup endpoint. Useful on Render's free tier, where
+// the backend sleeps after 15min idle and the first real request eats a
+// ~30s cold start — call this earlier (e.g. on app load) to absorb that.
+// Not auto-invoked here; the caller decides when to fire it.
+export function warmup() {
+  return apiFetch('/warmup');
+}
+
 // ══════════════════════════════════════════════════════════════════════════
 // RESEARCH PIPELINE
 // ══════════════════════════════════════════════════════════════════════════
