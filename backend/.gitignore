@@ -19,6 +19,9 @@ chroma_db/
 *.db
 data/
 
+# Eval run output (timestamped dumps, not source)
+evals/results/*.json
+
 # IDE
 .vscode/
 .idea/
