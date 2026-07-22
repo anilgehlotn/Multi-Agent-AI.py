@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -21,7 +22,7 @@ retriever = vectorstore.as_retriever(
     }
 )
 
-llm = ChatGoogleGenerativeAI(model = "gemini-flash-latest",temperature=0)
+llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
 
 #prompt template
 prompt = ChatPromptTemplate.from_messages(

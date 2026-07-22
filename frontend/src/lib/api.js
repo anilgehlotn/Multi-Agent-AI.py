@@ -2,58 +2,97 @@
  * Centralized API layer — all backend calls go through here.
  * Uses VITE_API_BASE_URL env var (default: http://localhost:8000).
  */
-import axios from 'axios';
+const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+async function apiFetch(path, options = {}) {
+  const isFormData = options.body instanceof FormData;
 
-const api = axios.create({
-  baseURL: BASE_URL,
-  timeout: 120000, // 2 min — some LLM calls are slow
-});
+  const headers = isFormData
+    ? { ...options.headers }
+    : { 'Content-Type': 'application/json', ...options.headers };
 
-// ── Wrapper: returns { data, error } so components don't need try/catch ─────
-async function safeCall(promise) {
+  // TODO: once auth is wired up, attach the bearer token here, e.g.
+  // const token = localStorage.getItem('researchmind:token');
+  // if (token) headers.Authorization = `Bearer ${token}`;
+
+  let res;
   try {
-    const res = await promise;
-    return { data: res.data, error: null };
-  } catch (err) {
-    const message =
-      err.response?.data?.detail ||
-      err.response?.data?.message ||
-      err.message ||
-      'Something went wrong';
-    return { data: null, error: message };
+    res = await fetch(`${BASE}${path}`, { ...options, headers });
+  } catch {
+    const err = new Error('Could not reach the server. Is the backend running?');
+    err.status = 0;
+    throw err;
   }
+
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      detail = body.detail || body.message || detail;
+    } catch {
+      // body wasn't JSON — fall back to statusText
+    }
+    const err = new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+    err.status = res.status;
+    err.detail = detail;
+    throw err;
+  }
+
+  if (res.status === 204) return null;
+  return res.json();
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
 // RESEARCH PIPELINE
-// ══════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
 
-export async function runResearch(topic) {
-  return safeCall(api.post('/api/research/run', { topic }));
-}
+export const researchApi = {
+  run(topic) {
+    return apiFetch('/research/run', {
+      method: 'POST',
+      body: JSON.stringify({ topic }),
+    });
+  },
+  list(limit = 50, offset = 0) {
+    return apiFetch(`/research/history?limit=${limit}&offset=${offset}`);
+  },
+  get(id) {
+    return apiFetch(`/research/history/${id}`);
+  },
+  status(id) {
+    return apiFetch(`/research/history/${id}/status`);
+  },
+  remove(id) {
+    return apiFetch(`/research/history/${id}`, { method: 'DELETE' });
+  },
+};
 
-export async function getResearchStatus(jobId) {
-  return safeCall(api.get(`/api/research/status/${jobId}`));
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
 // RAG PDF Q&A
-// ══════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
 
-export async function uploadPdf(file) {
-  const formData = new FormData();
-  formData.append('file', file);
-  return safeCall(api.post('/api/rag/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }));
-}
-
-export async function buildIndex(fileId) {
-  return safeCall(api.post('/api/rag/build-index', { file_id: fileId }));
-}
-
-export async function askQuestion(question) {
-  return safeCall(api.post('/api/rag/ask', { question }));
-}
+export const ragApi = {
+  upload(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiFetch('/rag/upload', { method: 'POST', body: formData });
+  },
+  listSessions() {
+    return apiFetch('/rag/sessions');
+  },
+  getSession(id) {
+    return apiFetch(`/rag/sessions/${id}`);
+  },
+  sessionStatus(id) {
+    return apiFetch(`/rag/sessions/${id}/status`);
+  },
+  ask(id, question) {
+    return apiFetch(`/rag/sessions/${id}/ask`, {
+      method: 'POST',
+      body: JSON.stringify({ question }),
+    });
+  },
+  removeSession(id) {
+    return apiFetch(`/rag/sessions/${id}`, { method: 'DELETE' });
+  },
+};

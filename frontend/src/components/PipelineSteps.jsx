@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { Search, FileText, PenTool, MessageSquare } from 'lucide-react';
+import { elapsedMMSS } from '../lib/format';
 
 const STEPS = [
   {
@@ -35,47 +37,23 @@ const STEPS = [
   },
 ];
 
-const STEP_ORDER = ['search', 'reader', 'writer', 'critic'];
-
-function getStepStatus(stepKey, currentStep, results) {
-  if (!currentStep) return 'waiting';
-  if (currentStep === 'done') return 'done';
-  if (currentStep === 'error') {
-    // Steps that completed before the error are done
-    return stepKey in results ? 'done' : 'waiting';
-  }
-
-  const currentIdx = STEP_ORDER.indexOf(currentStep);
-  const stepIdx = STEP_ORDER.indexOf(stepKey);
-
-  if (stepKey in results) return 'done';
-  if (stepIdx === currentIdx) return 'running';
-  if (stepIdx < currentIdx) return 'done';
-  return 'waiting';
-}
-
 const STATUS_CONFIG = {
-  waiting: {
-    label: 'WAITING',
-    color: 'var(--color-status-waiting)',
-    bg: '#F3F4F6',
-    bar: '#E5E7EB',
-  },
-  running: {
-    label: '● RUNNING',
-    color: 'var(--color-status-running)',
-    bg: '#FEF3C7',
-    bar: 'var(--color-status-running)',
-  },
-  done: {
-    label: '✓ DONE',
-    color: 'var(--color-status-done)',
-    bg: '#D1FAE5',
-    bar: 'var(--color-status-done)',
-  },
+  waiting: { label: 'WAITING', color: 'var(--color-status-waiting)', bg: '#F3F4F6', bar: '#E5E7EB', border: 'var(--color-border)' },
+  running: { label: '● RUNNING', color: 'var(--color-status-running)', bg: '#FEF3C7', bar: 'var(--color-status-running)', border: '#FDE68A' },
+  done: { label: '✓ DONE', color: 'var(--color-status-done)', bg: '#D1FAE5', bar: 'var(--color-status-done)', border: '#A7F3D0' },
+  failed: { label: '✕ FAILED', color: 'var(--color-status-error)', bg: '#FEE2E2', bar: 'var(--color-status-error)', border: '#FECACA' },
 };
 
-export default function PipelineSteps({ currentStep, results }) {
+function ElapsedTicker({ since }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return <span className="font-mono">{elapsedMMSS(since)}</span>;
+}
+
+export default function PipelineSteps({ steps }) {
   return (
     <div>
       <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--color-text-muted)' }}>
@@ -83,7 +61,8 @@ export default function PipelineSteps({ currentStep, results }) {
       </h2>
       <div className="space-y-3 stagger-children">
         {STEPS.map((step) => {
-          const status = getStepStatus(step.key, currentStep, results);
+          const stepData = steps?.[step.key] || { status: 'waiting' };
+          const status = STATUS_CONFIG[stepData.status] ? stepData.status : 'waiting';
           const config = STATUS_CONFIG[status];
           const Icon = step.icon;
 
@@ -93,7 +72,7 @@ export default function PipelineSteps({ currentStep, results }) {
               className="relative overflow-hidden flex items-center gap-4 p-4 bg-white transition-all"
               style={{
                 borderRadius: 'var(--radius-card)',
-                border: `1px solid ${status === 'running' ? '#FDE68A' : status === 'done' ? '#A7F3D0' : 'var(--color-border)'}`,
+                border: `1px solid ${config.border}`,
                 boxShadow: status === 'running' ? '0 0 0 3px rgba(245,158,11,0.08)' : 'var(--shadow-card)',
               }}
             >
@@ -125,7 +104,11 @@ export default function PipelineSteps({ currentStep, results }) {
                   </span>
                 </div>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                  {step.desc}
+                  {status === 'running' && stepData.started_at ? (
+                    <ElapsedTicker since={stepData.started_at} />
+                  ) : (
+                    step.desc
+                  )}
                 </p>
               </div>
 
