@@ -22,8 +22,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
-from db.database import Base, engine
+from db.database import Base, SessionLocal, engine
+from db.models import RagSession, ResearchRun
 from auth.router import router as auth_router
+from research.router import router as research_router
+from research import service as research_service
+from rag_api.router import router as rag_router
+from rag_api import service as rag_service
 
 app = FastAPI(title="ResearchMind API")
 
@@ -35,7 +40,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Auth endpoints exist (signup/login/me/logout) but aren't required by the
+# routes below — this project ships single-user for now, see README.
 app.include_router(auth_router)
+app.include_router(research_router)
+app.include_router(rag_router)
 
 
 @app.on_event("startup")
@@ -59,6 +68,26 @@ def init_db() -> None:
     # No Alembic yet — create_all() is fine for local dev. Add real
     # migrations before this ever points at a production database.
     Base.metadata.create_all(bind=engine)
+
+
+@app.on_event("startup")
+def ensure_data_dirs() -> None:
+    os.makedirs(rag_service.UPLOADS_DIR, exist_ok=True)
+    os.makedirs(rag_service.RAG_INDICES_DIR, exist_ok=True)
+
+
+@app.on_event("startup")
+def recover_stuck_jobs() -> None:
+    # BackgroundTasks are in-process — if the server restarts mid-run, that
+    # run/session is stuck in "running"/"indexing" forever without this.
+    db = SessionLocal()
+    try:
+        for run in db.query(ResearchRun).filter(ResearchRun.status == "running").all():
+            research_service.fail_run(db, run.id, "server restarted")
+        for session in db.query(RagSession).filter(RagSession.status == "indexing").all():
+            rag_service.fail_session(db, session.id, "server restarted")
+    finally:
+        db.close()
 
 
 @app.get("/")
