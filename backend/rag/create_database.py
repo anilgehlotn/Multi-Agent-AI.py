@@ -20,7 +20,7 @@ splitter = RecursiveCharacterTextSplitter(
 
 chunks = splitter.split_documents(docs)
 
-embedding_model = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+embedding_model = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
 
 vectorstore = Chroma.from_documents(
     documents= chunks,
