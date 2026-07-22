@@ -1,8 +1,18 @@
 import os
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+_ENV_PATH = os.path.join(_BACKEND_DIR, ".env")
+
+# Also populate os.environ (not just pydantic's Settings below) — libraries
+# like langchain-google-genai and the Tavily client read their API keys
+# straight from the process environment. A bare load_dotenv() elsewhere in
+# the codebase only searches upward from the current working directory,
+# which silently finds the wrong (or no) .env depending on where the
+# process was launched from; this pins it to backend/.env regardless.
+load_dotenv(dotenv_path=_ENV_PATH)
 
 
 class Settings(BaseSettings):
@@ -20,7 +30,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./researchmind.db"
 
     model_config = SettingsConfigDict(
-        env_file=os.path.join(_BACKEND_DIR, ".env"),
+        env_file=_ENV_PATH,
         env_file_encoding="utf-8",
         extra="ignore",
     )

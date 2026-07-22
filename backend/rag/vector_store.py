@@ -5,7 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 load_dotenv()
 
-embedding_model = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+embedding_model = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
 
 vectorstore = Chroma(
     persist_directory= "chroma_db",
@@ -21,7 +21,7 @@ retriever = vectorstore.as_retriever(
     }
 )
 
-llm = ChatGoogleGenerativeAI(model = "gemini-2.0-flash",temperature=0)
+llm = ChatGoogleGenerativeAI(model = "gemini-flash-latest",temperature=0)
 
 #prompt template
 prompt = ChatPromptTemplate.from_messages(
