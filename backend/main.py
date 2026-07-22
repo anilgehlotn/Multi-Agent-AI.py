@@ -22,6 +22,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
+from db.database import Base, engine
+from auth.router import router as auth_router
 
 app = FastAPI(title="ResearchMind API")
 
@@ -32,6 +34,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router)
 
 
 @app.on_event("startup")
@@ -48,6 +52,13 @@ async def validate_environment() -> None:
             file=sys.stderr,
         )
         raise SystemExit(1)
+
+
+@app.on_event("startup")
+def init_db() -> None:
+    # No Alembic yet — create_all() is fine for local dev. Add real
+    # migrations before this ever points at a production database.
+    Base.metadata.create_all(bind=engine)
 
 
 @app.get("/")
