@@ -17,6 +17,7 @@ ENV/
 # Vector store / DB artifacts
 chroma_db/
 *.db
+data/
 
 # IDE
 .vscode/
