@@ -109,6 +109,29 @@ npm run dev
 - **Persisted, per-session vector stores** — each PDF gets its own Chroma index under `backend/data/rag_indices/{session_id}/`, so sessions don't share or overwrite each other's embeddings
 - **Startup recovery** — runs/sessions left `running`/`indexing` from a server restart are marked `failed` on the next boot rather than staying stuck forever
 
+## 🌐 Deploy
+
+Backend on [Render](https://render.com) (free tier, Docker), frontend on [Vercel](https://vercel.com) (free tier, static). Both build from `main` via GitHub.
+
+> Render's free tier has no persistent disk and sleeps after 15 min idle — the SQLite DB resets on every redeploy/restart, and the first request after sleeping takes ~30s to wake up. Acceptable for a demo link; not for real data.
+
+### Backend (Render)
+1. Fork this repo
+2. On Render: **New → Blueprint** → connect this repo → **Apply** (Render reads `render.yaml` from the project root and creates the service)
+3. In the Render dashboard, fill in the env vars marked `sync: false`: `GROQ_API_KEY`, `GOOGLE_API_KEY`, `TAVILY_API_KEY`, `MISTRAL_API_KEY` (optional), and later `CORS_ORIGINS`
+4. Copy the `*.onrender.com` URL Render gives you once the service is live
+
+### Frontend (Vercel)
+1. On Vercel: **Add New → Project** → import this repo
+2. Root directory: `frontend`
+3. Framework: Vite (auto-detected via `vercel.json`)
+4. Environment variables: `VITE_API_BASE_URL` = your Render backend URL from above
+5. Deploy
+6. Copy the `*.vercel.app` URL Vercel gives you
+
+### After both are deployed
+Go back to the Render dashboard and set `CORS_ORIGINS` on the backend service to your Vercel URL (e.g. `https://your-app.vercel.app`), then redeploy the backend. Until this step, the deployed frontend's requests will fail CORS even though both services are individually up.
+
 ## 📄 License
 
 Internal project — all rights reserved.

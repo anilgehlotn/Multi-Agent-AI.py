@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     # SQLite file for now; swap to a Postgres URL later without code changes.
     DATABASE_URL: str = "sqlite:///./researchmind.db"
 
+    # Comma-separated list of allowed CORS origins. Parsed into a list in
+    # main.py — kept as a raw string here so it can be set as a single env
+    # var (e.g. on Render) without needing JSON-list syntax.
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+
     model_config = SettingsConfigDict(
         env_file=_ENV_PATH,
         env_file_encoding="utf-8",
