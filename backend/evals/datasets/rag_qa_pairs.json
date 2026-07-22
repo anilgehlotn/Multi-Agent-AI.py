@@ -1,0 +1,58 @@
+[
+  {
+    "id": "Q01",
+    "question": "What is the main architecture proposed in the paper?",
+    "gold_answer": "The Transformer, a model architecture based solely on attention mechanisms, dispensing with recurrence and convolutions entirely.",
+    "gold_page_hint": 0,
+    "type": "factual"
+  },
+  {
+    "id": "Q02",
+    "question": "How many identical layers does the Transformer's encoder stack consist of?",
+    "gold_answer": "6 identical layers (N = 6).",
+    "gold_page_hint": 2,
+    "type": "factual"
+  },
+  {
+    "id": "Q03",
+    "question": "What BLEU score does the 'big' Transformer model achieve on the WMT 2014 English-to-German translation task?",
+    "gold_answer": "28.4 BLEU.",
+    "gold_page_hint": 0,
+    "type": "factual"
+  },
+  {
+    "id": "Q04",
+    "question": "What is the formula for Scaled Dot-Product Attention, and why do the authors scale the dot products by 1/sqrt(dk)?",
+    "gold_answer": "Attention(Q, K, V) = softmax(QK^T / sqrt(dk)) V. They scale by 1/sqrt(dk) because for large dk the dot products grow large in magnitude, pushing the softmax function into regions with extremely small gradients; scaling counteracts this effect.",
+    "gold_page_hint": 3,
+    "type": "synthesis"
+  },
+  {
+    "id": "Q05",
+    "question": "Why does the Transformer use positional encodings, and what mathematical functions does it use to compute them?",
+    "gold_answer": "Since the model contains no recurrence or convolution, positional encodings are added to inject information about the relative or absolute position of tokens in the sequence. The paper uses sine and cosine functions of different frequencies, added to the input embeddings.",
+    "gold_page_hint": 5,
+    "type": "synthesis"
+  },
+  {
+    "id": "Q06",
+    "question": "Compare the BLEU scores of the base Transformer model and the big Transformer model on the English-to-German and English-to-French translation tasks.",
+    "gold_answer": "Base model: 27.3 BLEU (EN-DE), 38.1 BLEU (EN-FR). Big model: 28.4 BLEU (EN-DE), 41.8 BLEU (EN-FR) — the big model outperforms the base model on both language pairs.",
+    "gold_page_hint": 7,
+    "type": "synthesis"
+  },
+  {
+    "id": "Q07",
+    "question": "What is the CO2 emissions or environmental impact of training the Transformer model, as reported by the authors?",
+    "gold_answer": "I could not find the answer in the document.",
+    "gold_page_hint": null,
+    "type": "adversarial"
+  },
+  {
+    "id": "Q08",
+    "question": "What licensing terms or usage restrictions does the paper place on commercial use of the Transformer architecture?",
+    "gold_answer": "I could not find the answer in the document.",
+    "gold_page_hint": null,
+    "type": "adversarial"
+  }
+]
