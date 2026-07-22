@@ -1,0 +1,32 @@
+[
+  {
+    "id": "R01",
+    "topic": "Recent breakthroughs in fusion energy 2025",
+    "must_mention": ["National Ignition Facility", "net energy gain"],
+    "difficulty": "easy"
+  },
+  {
+    "id": "R02",
+    "topic": "LLM agents 2025",
+    "must_mention": ["agentic", "tool calling"],
+    "difficulty": "medium"
+  },
+  {
+    "id": "R03",
+    "topic": "RAG optimization techniques",
+    "must_mention": ["chunking", "reranking"],
+    "difficulty": "medium"
+  },
+  {
+    "id": "R04",
+    "topic": "Compare vector databases: Chroma vs FAISS vs Pinecone",
+    "must_mention": ["Chroma", "FAISS", "Pinecone"],
+    "difficulty": "hard"
+  },
+  {
+    "id": "R05",
+    "topic": "The future of autonomous AI agents",
+    "must_mention": ["autonomy", "human oversight"],
+    "difficulty": "hard"
+  }
+]
