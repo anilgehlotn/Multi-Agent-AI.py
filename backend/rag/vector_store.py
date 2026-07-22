@@ -1,12 +1,11 @@
 from dotenv import load_dotenv
-from langchain_openai import OpenAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_community.vectorstores import Chroma
-from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import ChatPromptTemplate
 
 load_dotenv()
 
-embedding_model = OpenAIEmbeddings()
+embedding_model = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
 
 vectorstore = Chroma(
     persist_directory= "chroma_db",
@@ -22,9 +21,9 @@ retriever = vectorstore.as_retriever(
     }
 )
 
-llm = ChatMistralAI(model = "mistral-small-2506")
+llm = ChatGoogleGenerativeAI(model = "gemini-2.0-flash",temperature=0)
 
-#prompt template 
+#prompt template
 prompt = ChatPromptTemplate.from_messages(
     [
         (
@@ -56,20 +55,19 @@ print("press 0 to exit ")
 while True:
     query = input("You : ")
     if query == "0":
-        break 
-    
+        break
+
     docs = retriever.invoke(query)
 
     context = "\n\n".join(
         [doc.page_content for doc in docs]
     )
-    
+
     final_prompt = prompt.invoke({
         "context" :context,
         "question": query
     })
-    
+
     response = llm.invoke(final_prompt)
 
     print(f"\n AI: {response.content}")
-    

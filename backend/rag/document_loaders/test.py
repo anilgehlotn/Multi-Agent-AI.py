@@ -8,7 +8,7 @@ splitter = CharacterTextSplitter(
     chunk_overlap=1
 )
 
-data = TextLoader("document loaders/notes.txt")
+data = TextLoader("document_loaders/notes.txt")
 
 docs = data.load()
 
