@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import History from './pages/History';
 import ResearchRunDetail from './pages/ResearchRunDetail';
 import RagSessionDetail from './pages/RagSessionDetail';
+import EvalsPage from './pages/EvalsPage';
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/history" element={<History />} />
           <Route path="/history/research/:id" element={<ResearchRunDetail />} />
           <Route path="/history/rag/:id" element={<RagSessionDetail />} />
+          <Route path="/evals" element={<EvalsPage />} />
         </Routes>
       </main>
     </div>

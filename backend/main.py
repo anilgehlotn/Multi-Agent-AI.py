@@ -30,6 +30,7 @@ from research.router import router as research_router
 from research import service as research_service
 from rag_api.router import router as rag_router
 from rag_api import service as rag_service
+from evals.router import router as evals_router
 
 app = FastAPI(title="ResearchMind API")
 
@@ -48,6 +49,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(research_router)
 app.include_router(rag_router)
+app.include_router(evals_router)
 
 
 @app.on_event("startup")

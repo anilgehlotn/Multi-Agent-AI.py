@@ -36,6 +36,13 @@ export default function Navbar() {
             >
               History
             </NavLink>
+            <NavLink
+              to="/evals"
+              className="text-sm font-medium transition-colors"
+              style={({ isActive }) => ({ color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-muted)' })}
+            >
+              Evaluations
+            </NavLink>
             <span
               className="text-sm cursor-not-allowed"
               style={{ color: 'var(--color-text-muted)' }}
