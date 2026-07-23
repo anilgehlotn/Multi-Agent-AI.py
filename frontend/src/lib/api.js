@@ -104,3 +104,12 @@ export const ragApi = {
     return apiFetch(`/rag/sessions/${id}`, { method: 'DELETE' });
   },
 };
+
+// ══════════════════════════════════════════════════════════════════════════
+// EVALS (cached scorecards)
+// ══════════════════════════════════════════════════════════════════════════
+
+export const evalsApi = {
+  latest: () => apiFetch('/evals/latest'),
+  status: () => apiFetch('/evals/status'),
+};
